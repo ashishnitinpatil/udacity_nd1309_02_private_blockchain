@@ -1,0 +1,16 @@
+{
+  "name": "02_private_blockchain",
+  "version": "1.0.0",
+  "description": "Udacity BlockChain Developer Nanodegree Project #2",
+  "main": "index.js",
+  "dependencies": {
+    "crypto-js": "^3.1.9-1",
+    "level": "^4.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Ashish Patil",
+  "license": "ISC"
+}
