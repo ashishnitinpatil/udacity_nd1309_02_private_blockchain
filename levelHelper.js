@@ -26,18 +26,18 @@ function addBlock(height, data) {
 }
 
 
-// Get height of the blockChain from levelDB
-function getBlockHeight() {
+// Get length of the blockChain from levelDB
+function getChainLength() {
     return new Promise((resolve, reject) => {
-        let chainHeight = 0;
+        let chainLength = 0;
 
         db.createKeyStream().on('data', function(data) {
-            chainHeight++;
+            chainLength++;
         }).on('error', function(err) {
             console.log('Unable to read key stream!', err);
             reject(err);
         }).on('close', function() {
-            resolve(chainHeight);
+            resolve(chainLength);
         });
     });
 }
@@ -63,6 +63,6 @@ function getBlockChain() {
 module.exports = {
     getBlock,
     addBlock,
-    getBlockHeight,
+    getChainLength,
     getBlockChain,
 }
