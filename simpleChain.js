@@ -3,6 +3,7 @@
 |  =========================================================*/
 
 const SHA256 = require('crypto-js/sha256');
+const levelDB = require('./levelHelper');
 
 
 /* ===== Block Class ==============================
@@ -25,41 +26,49 @@ class Block {
 
 class Blockchain {
 	constructor() {
-		this.chain = [];
-		this.addBlock(new Block("First block in the chain - Genesis block"));
+		var self = this;
+		// Add a genesis block if blockChain is empty (height = -1)
+		self.getBlockHeight().then(function(height) {
+			if (height == -1) {
+				self.addBlock(new Block("Genesis block")).then(
+					() => console.log('Genesis block added'));
+			}
+		});
 	}
 
 	// Add new block
-	addBlock(newBlock) {
+	async addBlock(newBlock) {
+		const chainHeight = await this.getBlockHeight();
 		// Block height
-		newBlock.height = this.chain.length;
+		newBlock.height = chainHeight + 1;
 		// UTC timestamp
-		newBlock.time = new Date().getTime().toString().slice(0, -3);
+		newBlock.time = new Date().getTime().toString();
 		// previous block hash
-		if (this.chain.length > 0) {
-			newBlock.previousBlockHash = this.chain[this.chain.length - 1].hash;
+		if (chainHeight > 0) { // non genesis block
+			newBlock.previousBlockHash = await this.getBlock(chainHeight).hash;
 		}
 		// Block hash with SHA256 using newBlock and converting to a string
 		newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
 		// Adding block object to chain
-		this.chain.push(newBlock);
+		return await levelDB.addBlock(newBlock.height, JSON.stringify(newBlock));
 	}
 
-	// Get block height
-	getBlockHeight() {
-		return this.chain.length - 1;
+	// get latest block's height
+	async getBlockHeight() {
+		const chainLength = await levelDB.getChainLength();
+		return chainLength - 1;
 	}
 
-	// get block
-	getBlock(blockHeight) {
+	// get block at height
+	async getBlock(blockHeight) {
 		// return object as a single string
-		return JSON.parse(JSON.stringify(this.chain[blockHeight]));
+		return JSON.parse(await levelDB.getBlock(blockHeight));
 	}
 
 	// validate block
-	validateBlock(blockHeight) {
+	async validateBlock(blockHeight) {
 		// get block object
-		let block = this.getBlock(blockHeight);
+		let block = await this.getBlock(blockHeight);
 		// get block hash
 		let blockHash = block.hash;
 		// remove block hash to test block integrity
@@ -70,23 +79,27 @@ class Blockchain {
 		if (blockHash === validBlockHash) {
 			return true;
 		} else {
-			console.log('Block #' + blockHeight + ' invalid hash:\n' + blockHash + '<>' +
+			console.log('Block #' + blockHeight + ' invalid hash:\n' + blockHash +
+				'<>' +
 				validBlockHash);
 			return false;
 		}
 	}
 
 	// Validate blockchain
-	validateChain() {
+	async validateChain() {
 		let errorLog = [];
-		for (var i = 0; i < this.chain.length - 1; i++) {
+		const chainLength = await levelDB.getChainLength();
+		for (let i = 0; i < chainLength - 1; i++) {
 			// validate block
-			if (!this.validateBlock(i)) errorLog.push(i);
+			if (!await this.validateBlock(i)) errorLog.push(i);
 			// compare blocks hash link
-			let blockHash = this.chain[i].hash;
-			let previousHash = this.chain[i + 1].previousBlockHash;
-			if (blockHash !== previousHash) {
-				errorLog.push(i);
+			let blockHash = this.getBlock(i).hash;
+			if (i < chainLength - 1) { // chain has at least one block above this one
+				let previousHash = this.getBlock(i + 1).previousBlockHash;
+				if (blockHash !== previousHash) {
+					errorLog.push(i);
+				}
 			}
 		}
 		if (errorLog.length > 0) {
@@ -97,3 +110,24 @@ class Blockchain {
 		}
 	}
 }
+
+/* ===== Testing ===========================================
+|  Instantiate a new chain, add blocks to it, then validate |
+|  ========================================================*/
+
+let testchain = new Blockchain();
+
+testchain.getBlockHeight().then(function(h) {
+	console.log(`Existing chain height ${h}`);
+	testchain.addBlock(new Block(`Test block #${h+1}`))
+		.then(() => testchain.addBlock(new Block(`Test block #${h+2}`)))
+		.then(() => testchain.addBlock(new Block(`Test block #${h+3}`)))
+		.then(() => testchain.addBlock(new Block(`Test block #${h+4}`)))
+		.then(() => testchain.addBlock(new Block(`Test block #${h+5}`)))
+		.then(() => testchain.addBlock(new Block(`Test block #${h+6}`)))
+		.then(() => testchain.addBlock(new Block(`Test block #${h+7}`)))
+		.then(() => testchain.addBlock(new Block(`Test block #${h+8}`)))
+		.then(() => testchain.validateChain())
+		.then(() => testchain.getBlockHeight().then(h => console.log(
+			`New chain height ${h}`)));
+});
