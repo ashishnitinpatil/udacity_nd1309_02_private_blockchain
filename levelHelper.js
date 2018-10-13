@@ -9,7 +9,14 @@ const db = level(chainDB);
 
 // Get block from levelDB with given height
 function getBlock(height) {
-    return db.get(height);
+    return new Promise((resolve, reject) => {
+        db.get(key, function(err, value) {
+            if (err)
+                reject(err);
+            else
+                resolve(JSON.parse(value));
+        });
+    });
 }
 
 
