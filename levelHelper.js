@@ -10,11 +10,11 @@ const db = level(chainDB);
 // Get block from levelDB with given height
 function getBlock(height) {
     return new Promise((resolve, reject) => {
-        db.get(key, function(err, value) {
+        db.get(height, function(err, value) {
             if (err)
                 reject(err);
             else
-                resolve(JSON.parse(value));
+                resolve(value);
         });
     });
 }
@@ -43,26 +43,8 @@ function getChainLength() {
 }
 
 
-// Get entire blockChain from levelDB
-function getBlockChain() {
-    return new Promise((resolve, reject) => {
-        let chain = [];
-
-        db.createReadStream().on('data', function(data) {
-            chain.push(JSON.parse(data.value));
-        }).on('error', function(err) {
-            console.log('Unable to read data stream!', err);
-            reject(err);
-        }).on('close', function() {
-            resolve(chain);
-        });
-    });
-}
-
-
 module.exports = {
     getBlock,
     addBlock,
     getChainLength,
-    getBlockChain,
 }
