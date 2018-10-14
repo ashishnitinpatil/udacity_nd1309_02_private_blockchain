@@ -44,8 +44,9 @@ class Blockchain {
 		// UTC timestamp
 		newBlock.time = new Date().getTime().toString();
 		// previous block hash
-		if (chainHeight > 0) { // non genesis block
-			newBlock.previousBlockHash = await this.getBlock(chainHeight).hash;
+		if (chainHeight > -1) { // non genesis block
+			const previousBlock = await this.getBlock(chainHeight);
+			newBlock.previousBlockHash = previousBlock.hash;
 		}
 		// Block hash with SHA256 using newBlock and converting to a string
 		newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
@@ -89,24 +90,27 @@ class Blockchain {
 	// Validate blockchain
 	async validateChain() {
 		let errorLog = [];
+		let previousBlock, currentBlock;
 		const chainLength = await levelDB.getChainLength();
-		for (let i = 0; i < chainLength - 1; i++) {
+
+		for (let i = 0; i < chainLength; i++) {
 			// validate block
 			if (!await this.validateBlock(i)) errorLog.push(i);
 			// compare blocks hash link
-			let blockHash = this.getBlock(i).hash;
-			if (i < chainLength - 1) { // chain has at least one block above this one
-				let previousHash = this.getBlock(i + 1).previousBlockHash;
-				if (blockHash !== previousHash) {
+			currentBlock = await this.getBlock(i);
+			console.log(currentBlock);
+			if (i > 0) {
+				if (currentBlock.previousBlockHash !== previousBlock.hash) {
 					errorLog.push(i);
 				}
 			}
+			previousBlock = currentBlock;
 		}
 		if (errorLog.length > 0) {
-			console.log('Block errors = ' + errorLog.length);
-			console.log('Blocks: ' + errorLog);
+			console.log('\nBlock errors = ' + errorLog.length);
+			console.log('\tBlocks: ' + errorLog);
 		} else {
-			console.log('No errors detected');
+			console.log('\nChain validated. No errors detected.');
 		}
 	}
 }
@@ -118,7 +122,7 @@ class Blockchain {
 let testchain = new Blockchain();
 
 testchain.getBlockHeight().then(function(h) {
-	console.log(`Existing chain height ${h}`);
+	console.log(`\nExisting block height ${h}\n`);
 	testchain.addBlock(new Block(`Test block #${h+1}`))
 		.then(() => testchain.addBlock(new Block(`Test block #${h+2}`)))
 		.then(() => testchain.addBlock(new Block(`Test block #${h+3}`)))
@@ -129,5 +133,5 @@ testchain.getBlockHeight().then(function(h) {
 		.then(() => testchain.addBlock(new Block(`Test block #${h+8}`)))
 		.then(() => testchain.validateChain())
 		.then(() => testchain.getBlockHeight().then(h => console.log(
-			`New chain height ${h}`)));
+			`\nNew block height ${h}\n`)));
 });
